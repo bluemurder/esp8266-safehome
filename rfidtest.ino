@@ -23,10 +23,6 @@ MFRC522 mfrc522(SS_PIN, RST_PIN);
 
 void setup()
 {
-  // Blue onboard led
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, LOW);
-
   // Initiate  SPI bus
   SPI.begin();
   
@@ -37,8 +33,7 @@ void setup()
   Serial.begin(9600);
 
   // Setup completed
-  delay(2000);
-  digitalWrite(LED_BUILTIN, HIGH);
+  Serial.println("Setup completed");
 }
 
 void loop()
@@ -77,8 +72,4 @@ void CheckLocalRFIDReader()
   Serial.print(content);
   Serial.println();
   Serial.println();
-
-  digitalWrite(LED_BUILTIN, HIGH);
-  delay(1000);
-  digitalWrite(LED_BUILTIN, LOW);
 }

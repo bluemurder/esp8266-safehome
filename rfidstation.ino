@@ -14,12 +14,13 @@
 #include <SPI.h>
 #include <MFRC522.h>
 #include <ESP8266WiFi.h>
+#include <WiFiClient.h> 
 
 //////////////////////////////////////////////////////////////////////////////
 // Defines
-#define SS_PIN 15 // SPI pin connected to local RFID reader
-#define RST_PIN 5 // SPI RST pin connected to local RFID reader
-#define REDLED_PIN D2 // D2
+#define SS_PIN 15       // SPI pin connected to local RFID reader
+#define RST_PIN 5       // SPI RST pin connected to local RFID reader
+#define REDLED_PIN D2   // D2
 #define GREENLED_PIN D4 // D4
 
 //////////////////////////////////////////////////////////////////////////////
@@ -34,6 +35,9 @@ WiFiServer httpServer(15763);
 // Setup
 void setup()
 {
+  // Debug
+  Serial.begin(9600);
+  
   // Status leds
   pinMode(REDLED_PIN, OUTPUT);
   pinMode(GREENLED_PIN, OUTPUT);
@@ -44,38 +48,53 @@ void setup()
   // Initiate MFRC522
   mfrc522.PCD_Init();
 
-  // Connect with AP
-  IPAddress ip(42, 42, 42, 43);
-  IPAddress gateway(42, 42, 42, 42);
-  IPAddress subnet(255, 0, 0, 0);
-  WiFi.config(ip, gateway, subnet);
+  // Configure wifi node
+  bool stationConfigured = WiFi.config(
+    IPAddress(42, 42, 42, 43),  // local_ip
+    IPAddress(42, 42, 42, 42),  // gateway
+    IPAddress(255, 255, 255, 0) // subnet
+    );
 
-  const char* ssid = "GuaglioWifi";
-  const char* password = "test";
-  //const char* password = "Kk$fptf#kMUgH$-fAZN4p^9";
-  WiFi.begin(ssid, password);
+  if(!stationConfigured)
+  {
+    Serial.println("Error, WiFi.config() returned false.");
+  }
+
+  // Connect to wifi
+  bool stationConnected = WiFi.begin(
+    "GuaglioWifi",
+    "testtesttest");
+
+  if(!stationConnected)
+  {
+    Serial.println("Error, WiFi.begin() returned false.");
+  }
 
   // Set automatic reconnection
-  WiFi.setAutoReconnect(true);
+  bool autoreconnect = WiFi.setAutoReconnect(true);
+
+  if(!autoreconnect)
+  {
+    Serial.println("Error, WiFi.setAutoReconnect() returned false.");
+  }
 
   // Start http server
   httpServer.begin();
 
-  // Debug
-  Serial.begin(9600);
+  Serial.println("Server started on port 15763");
+
+  Serial.println("Setup completed.");
 }
 
 //////////////////////////////////////////////////////////////////////////////
 // Loop
-void loop() {
-
+void loop()
+{
   // Set green led according to connection
-  bool connectionOk = CheckConnection();
-  digitalWrite(GREENLED_PIN, connectionOk ? HIGH : LOW);
+  digitalWrite(GREENLED_PIN, CheckConnection() ? HIGH : LOW);
 
   // Set red led according to alarm state
-  bool armedState = CheckAlarmState();
-  digitalWrite(REDLED_PIN, armedState ? HIGH : LOW);
+  digitalWrite(REDLED_PIN, CheckAlarmState() ? HIGH : LOW);
   
   // Read from local RFID reader 
   CheckLocalRFIDReader();

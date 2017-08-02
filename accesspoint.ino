@@ -1,6 +1,7 @@
 // Select NodeMCU 1.0
 
 // PINOUT:
+// ---------------------------
 // RC522 MODULE    NodeMCU 1.0
 // SDA             15
 // SCK             14
@@ -10,32 +11,28 @@
 // GND             GND
 // RST             5
 // 3.3V            3.3V
-
-// Known tags
-// UID tag : 55 79 D7 2B
-// UID tag : 3D 98 2C 62
-// UID tag : 57 11 A1 59
-// UID tag : 3D 3C 07 85
-
-// Peripherals  NodeMcu 1.0
-// Buzzer       4 (D2)
-// Pir          2 (D4)
+// ---------------------------
+// Peripherals     NodeMcu 1.0
+// Buzzer          4 (D2)
+// Pir             2 (D4)
 
 // IP of this access point: 42.42.42.42
 // SSID: "GuaglioWifi"
-// Password: "Kk$fptf#kMUgH$-fAZN4p^9"
+// Password: "testtesttest"
 // Server port: 42501
 
 #include <SPI.h>
 #include <MFRC522.h>
 #include <ESP8266WiFi.h>
+#include <WiFiClient.h> 
 
 //////////////////////////////////////////////////////////////////////////////
 // Defines
-#define SS_PIN 15 // SPI pin connected to local RFID reader
-#define RST_PIN 5 // SPI RST pin connected to local RFID reader
-#define BUZZ_PIN 4 // Buzzer
-#define LOCALPIR_PIN 2 // choose the input pin (for PIR sensor)
+#define SS_PIN 15       // SPI pin connected to local RFID reader
+#define RST_PIN 5       // SPI RST pin connected to local RFID reader
+#define BUZZ_PIN D2     // Buzzer
+#define LOCALPIR_PIN D4 // PIR sensor input
+#define ARMEDLED_PIN D3 // Led showing armed status
 
 //////////////////////////////////////////////////////////////////////////////
 // Globals
@@ -44,10 +41,6 @@ MFRC522 mfrc522(SS_PIN, RST_PIN);
 bool rfidStationConnected;
 WiFiServer httpServer(42501);
 WiFiClient rfidStationClient;
-IPAddress ip(42, 42, 42, 42);
-IPAddress rfidstation_ip(42, 42, 42, 43);
-IPAddress gateway(42, 42, 42, 42);
-IPAddress subnet(255, 0, 0, 0);
 
 //////////////////////////////////////////////////////////////////////////////
 // Setup
@@ -61,10 +54,11 @@ void setup()
   // Local sensor input pin setup
   pinMode(LOCALPIR_PIN, INPUT);
 
-  // Blue onboard led
-  pinMode(LED_BUILTIN, OUTPUT);
-  // Led os ON when system is not armed
-  digitalWrite(LED_BUILTIN, armed ? HIGH : LOW);
+  // Led showing armed status
+  pinMode(ARMEDLED_PIN, OUTPUT);
+
+  // Led is ON when system is not armed
+  digitalWrite(ARMEDLED_PIN, armed ? LOW : HIGH);
 
   // Flag used to store if the station with secondary RFID reader is present and connected
   rfidStationConnected = false;
@@ -72,40 +66,50 @@ void setup()
   // Initiate  SPI bus
   SPI.begin();
   
-  // Initiate MFRC522
+  // Init MFRC522 interface
   mfrc522.PCD_Init();
 
   // Start Wifi
-  WiFi.softAPConfig(
-    ip,       // local_ip
-    gateway,  // gateway
-    subnet    // subnet
-    );
-  const char* ssid = "GuaglioWifi";
-  const char* password = "test";
-  //const char* password = "Kk$fptf#kMUgH$-fAZN4p^9";
-//  WiFi.softAP(
-//    ssid,     // ssid
-//    password, // password
-//    13,       // channel
-//    1);       // ssid_hidden
+  bool apCreation = WiFi.softAP(
+    "GuaglioWifi",  // ssid
+    "testtesttest", // password
+    13,             // channel
+    1);             // ssid_hidden
 
-  WiFi.softAP(
-    ssid,     // ssid
-    password);// password
+  if(!apCreation)
+  {
+    Serial.println("Error, WiFi.softAP() returned false.");
+  }
+
+   bool apConfig = WiFi.softAPConfig(
+    IPAddress(42, 42, 42, 42),  // local_ip
+    IPAddress(42, 42, 42, 42),  // gateway
+    IPAddress(255, 255, 255, 0) // subnet
+    );
+
+  if(!apConfig)
+  {
+    Serial.println("Error, WiFi.softAPConfig() returned false.");
+  }
+
+  IPAddress myIP = WiFi.softAPIP();
+  Serial.print("IP address: ");
+  Serial.println(myIP);
 
   // Start Webserver
   httpServer.begin();
 
-  Serial.println("Server started...");
+  Serial.println("Server started.");
+
+  Serial.println("Setup completed.");
 }
 
 //////////////////////////////////////////////////////////////////////////////
 // Main loop
 void loop()
 {
-  // Check presence of remote RFID reader. If currently present, no delay will
-  // be applied to alarm
+  // Check presence of remote RFID reader. If present, no delay will be applied
+  // to alarm
   ConnectRfidStation();
   
   // Read from local RFID reader 
@@ -127,7 +131,7 @@ void ConnectRfidStation()
 {
   if(!rfidStationClient.connected())
   {
-    if (rfidStationClient.connect(rfidstation_ip, 15763))
+    if (rfidStationClient.connect(IPAddress(42, 42, 42, 43), 15763))
     {
       rfidStationConnected = true;
       return;
@@ -248,10 +252,8 @@ void CheckLocalRFIDReader()
 // Check if tag ID is known
 bool IsKnownTagId(const String & id)
 {
-  if(id == "55 79 D7 2B" ||
-    id == "3D 98 2C 62" ||
-    id == "57 11 A1 59" ||
-    id == "3D 3C 07 85")
+  if(id == "15 45 33 26" ||
+    id == "11 34 22 47")
     {
       return true;
     }
@@ -269,8 +271,9 @@ void ToggleAlarmStatus()
   {
     // Switch off alarm
     armed = false;
-    // Led os ON when system is not armed
-    digitalWrite(LED_BUILTIN, armed ? HIGH : LOW);
+    
+    // Led is ON when system is not armed
+    digitalWrite(ARMEDLED_PIN, armed ? LOW : HIGH);
 
     tone(BUZZ_PIN, 330, 1000);
     tone(BUZZ_PIN, 660, 1000);
@@ -293,9 +296,11 @@ void ToggleAlarmStatus()
     // 20 seconds to run out (5 already gone)
     delay(15000);
 
+    // System armed
     armed = true;
-    // Led os ON when system is not armed
-    digitalWrite(LED_BUILTIN, armed ? HIGH : LOW);
+    
+    // Led is ON when system is not armed
+    digitalWrite(ARMEDLED_PIN, armed ? LOW : HIGH);
   }
 }
 

@@ -15,11 +15,14 @@
 // Peripherals     NodeMcu 1.0
 // Buzzer          4 (D2)
 // Pir             2 (D4)
+// Status led         D3
 
 // IP of this access point: 42.42.42.42
 // SSID: "GuaglioWifi"
 // Password: "testtesttest"
 // Server port: 42501
+//
+// 
 
 #include <SPI.h>
 #include <MFRC522.h>

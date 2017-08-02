@@ -91,13 +91,20 @@ void setup()
 void loop()
 {
   // Set green led according to connection
-  digitalWrite(GREENLED_PIN, CheckConnection() ? HIGH : LOW);
+  bool connection = CheckConnection();
+  digitalWrite(GREENLED_PIN, connection ? HIGH : LOW);
 
   // Set red led according to alarm state
   digitalWrite(REDLED_PIN, CheckAlarmState() ? HIGH : LOW);
   
-  // Read from local RFID reader 
-  CheckLocalRFIDReader();
+  // If connected, read from local RFID reader 
+  if(connection)
+  {
+    CheckLocalRFIDReader();
+  }
+
+  // Wait for a while 
+  delay(200);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -151,22 +158,29 @@ void CheckLocalRFIDReader()
   }  
   content.toUpperCase();
 
-  // Send data to access point
+  // Send data to access point and blink green led
   if(!wifiClient.connected())
   {
     if (!wifiClient.connect(accesspoint_ip, accesspoint_port))
     {
-      digitalWrite(GREENLED_PIN, HIGH);
-      delay(200);
-      digitalWrite(GREENLED_PIN, LOW);
-      delay(200);
-      digitalWrite(GREENLED_PIN, HIGH);
-      delay(200);
-      digitalWrite(GREENLED_PIN, LOW);
       return;
     }
   }
 
   // This will send the request to the server
   wifiClient.print("TAG:" + content);
+
+  // Assuming here if connection ok and green led ON.
+  // Blink green led to inform user that card info was sent 
+  digitalWrite(GREENLED_PIN, LOW);
+  delay(200);
+  digitalWrite(GREENLED_PIN, HIGH);
+  delay(200);
+  digitalWrite(GREENLED_PIN, LOW);
+  delay(200);
+  digitalWrite(GREENLED_PIN, HIGH);
+  delay(200);
+  digitalWrite(GREENLED_PIN, LOW);
+  delay(200);
+  digitalWrite(GREENLED_PIN, HIGH);
 }

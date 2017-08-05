@@ -3,13 +3,13 @@
 // PINOUT:
 // ---------------------------
 // RC522 MODULE    NodeMCU 1.0
-// SDA             15
-// SCK             14
-// MOSI            13
-// MISO            12
+// SDA             15 (D8)
+// SCK             14 (D5)
+// MOSI            13 (D7)
+// MISO            12 (D6)
 // IRQ             N/A
 // GND             GND
-// RST             5
+// RST             5  (D1)
 // 3.3V            3.3V
 // ---------------------------
 // Peripherals     NodeMcu 1.0
@@ -33,13 +33,12 @@
 // Defines
 #define SS_PIN 15       // SPI pin connected to local RFID reader
 #define RST_PIN 5       // SPI RST pin connected to local RFID reader
-#define BUZZ_PIN D2     // Buzzer
 #define LOCALPIR_PIN D4 // PIR sensor input
 #define ARMEDLED_PIN D3 // Led showing armed status
 
 //////////////////////////////////////////////////////////////////////////////
 // Globals
-bool armed;
+bool g_armed(false);
 MFRC522 mfrc522(SS_PIN, RST_PIN);
 bool rfidStationConnected;
 WiFiServer httpServer(42501);
@@ -50,9 +49,6 @@ WiFiClient rfidStationClient;
 void setup()
 {
   Serial.begin(9600);
-    
-  // Armed status off
-  armed = false;
 
   // Local sensor input pin setup
   pinMode(LOCALPIR_PIN, INPUT);
@@ -61,7 +57,7 @@ void setup()
   pinMode(ARMEDLED_PIN, OUTPUT);
 
   // Led is ON when system is not armed
-  digitalWrite(ARMEDLED_PIN, armed ? LOW : HIGH);
+  digitalWrite(ARMEDLED_PIN, g_armed ? LOW : HIGH);
 
   // Flag used to store if the station with secondary RFID reader is present and connected
   rfidStationConnected = false;
@@ -126,6 +122,9 @@ void loop()
 
   // Handle remote requests
   HandleRemoteRequests();
+
+  // Delay on main loop
+  delay(500);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -156,7 +155,7 @@ void ConnectRfidStation()
 // Decide if start alarm immediately or with a delay
 void PresenceDetected()
 {
-  if(armed)
+  if(g_armed)
   {
     if(rfidStationConnected)
     {
@@ -187,35 +186,37 @@ void HandleRemoteRequests()
   }
 
   // Read the first line of the request
-  String req = wifiClient.readStringUntil('\r');
+  String req = wifiClient.readStringUntil('\n');
   Serial.println("Client request:" + req);
-  wifiClient.flush();
 
   // Match the request
   if (req.indexOf("/armed") != -1)
   {
     // rfid station requested to get current alarm state
-    String response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n";
-    response += armed ? "1" : "0";
-    response += "\r\n";
-    wifiClient.print(response);
+    wifiClient.print(g_armed ? "1" : "0");
   }
   else if (req.indexOf("/pir") != -1)
   {
     // Some sensor station detected presence
     PresenceDetected();
-    wifiClient.flush();
   }
   else if (req.indexOf("TAG:") != -1)
   {
     // Tag ID received from remote RFID station
     rfidStationConnected = true;
-    wifiClient.flush();
+
+    Serial.println(">>>>>" + req.substring(5));
+
+    if(IsKnownTagId(req.substring(5)))
+    {
+      Serial.println("Known tag received!!!");
+      ToggleAlarmStatus();
+    }
   }
   else
   {
     Serial.println("invalid request");
-    wifiClient.stop();
+    //wifiClient.stop();
     return;
   }
 }
@@ -255,55 +256,55 @@ void CheckLocalRFIDReader()
 // Check if tag ID is known
 bool IsKnownTagId(const String & id)
 {
-  if(id == "15 45 33 26" ||
-    id == "11 34 22 47")
-    {
-      return true;
-    }
-    else
-    {
-      return false;
-    }
+  if(id == "55 79 D7 2B" ||
+    id == "3D 98 2C 62" ||
+    id == "57 11 A1 59" ||
+    id == "3D 3C 07 85")
+  {
+    return true;
+  }
+  else
+  {
+    return false;
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////////
 // Check local RFID tag reader
 void ToggleAlarmStatus()
 {
-  if(armed)
+  if(g_armed)
   {
     // Switch off alarm
-    armed = false;
-    
-    // Led is ON when system is not armed
-    digitalWrite(ARMEDLED_PIN, armed ? LOW : HIGH);
+    g_armed = false;
 
-    tone(BUZZ_PIN, 330, 1000);
-    tone(BUZZ_PIN, 660, 1000);
-    noTone(BUZZ_PIN);
+    // Blink
+    digitalWrite(ARMEDLED_PIN, HIGH);
+    delay(1000);
+    digitalWrite(ARMEDLED_PIN, LOW);
+    delay(1000);
+
+    // Led is ON when system is not armed
+    digitalWrite(ARMEDLED_PIN, g_armed ? LOW : HIGH);
   }
   else
   {
     // Turn on alarm
-    tone(BUZZ_PIN, 330, 500);
+    digitalWrite(ARMEDLED_PIN, LOW);
     delay(500);
-    tone(BUZZ_PIN, 330, 500);
+    digitalWrite(ARMEDLED_PIN, HIGH);
     delay(500);
-    tone(BUZZ_PIN, 330, 500);
+    digitalWrite(ARMEDLED_PIN, LOW);
     delay(500);
-    tone(BUZZ_PIN, 330, 500);
+    digitalWrite(ARMEDLED_PIN, HIGH);
     delay(500);
-    tone(BUZZ_PIN, 330, 500);
-    noTone(BUZZ_PIN);
-
-    // 20 seconds to run out (5 already gone)
-    delay(15000);
+    digitalWrite(ARMEDLED_PIN, LOW);
 
     // System armed
-    armed = true;
+    g_armed = true;
     
     // Led is ON when system is not armed
-    digitalWrite(ARMEDLED_PIN, armed ? LOW : HIGH);
+    digitalWrite(ARMEDLED_PIN, g_armed ? LOW : HIGH);
   }
 }
 
@@ -311,12 +312,7 @@ void ToggleAlarmStatus()
 // Siren!
 void ImmediateIntrusion()
 {
-  for(int i = 0; i < 200; i++)
-  {
-    tone(BUZZ_PIN, 1000, 100);
-    delay(50);
-  }
-  noTone(BUZZ_PIN);
+  // TODO
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -328,11 +324,15 @@ void DelayedIntrusion()
   for(int i=0; i<20; i++)
   {
     CheckLocalRFIDReader();
+    String msg = "Wait for possible disarm by owner [";
+    msg.concat(i);
+    msg.concat("]");
+    Serial.println(msg);
     delay(900);
   }
 
   // Now, if alarm is still armed, turn on siren
-  if(armed)
+  if(g_armed)
   {
     ImmediateIntrusion();
   }

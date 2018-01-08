@@ -48,6 +48,10 @@ WiFiClient rfidStationClient;
 // Setup
 void setup()
 {
+  // Wait one second
+  delay(1000);
+  
+  // Init serial for debugging purpose 
   Serial.begin(9600);
 
   // Local sensor input pin setup
@@ -70,10 +74,10 @@ void setup()
 
   // Start Wifi
   bool apCreation = WiFi.softAP(
-    "GuaglioWifi",  // ssid
-    "testtesttest", // password
-    13,             // channel
-    1);             // ssid_hidden
+    "GuaglioWifi",                // ssid
+    "testtesttest",               // password
+    13,                           // channel
+    1);                           // ssid_hidden
 
   if(!apCreation)
   {
@@ -81,9 +85,9 @@ void setup()
   }
 
    bool apConfig = WiFi.softAPConfig(
-    IPAddress(42, 42, 42, 42),  // local_ip
-    IPAddress(42, 42, 42, 42),  // gateway
-    IPAddress(255, 255, 255, 0) // subnet
+    IPAddress(42, 42, 42, 42),         // local_ip
+    IPAddress(42, 42, 42, 42),         // gateway
+    IPAddress(255, 255, 255, 0)        // subnet
     );
 
   if(!apConfig)
@@ -98,8 +102,8 @@ void setup()
   // Start Webserver
   httpServer.begin();
 
+  // Print debug messages
   Serial.println("Server started.");
-
   Serial.println("Setup completed.");
 }
 

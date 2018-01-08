@@ -5,8 +5,8 @@
 #include <ESP8266WebServer.h>
 
 // Access point credentials
-const char *ssid = "ESPap";
-const char *password = "thereisnospoon";
+const char *ssid = "testssid";
+const char *password = "passwordpasswordpassword";
 
 // Web server on port 80
 ESP8266WebServer server(80);

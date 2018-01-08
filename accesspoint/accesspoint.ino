@@ -256,10 +256,7 @@ void CheckLocalRFIDReader()
 // Check if tag ID is known
 bool IsKnownTagId(const String & id)
 {
-  if(id == "55 79 D7 2B" ||
-    id == "3D 98 2C 62" ||
-    id == "57 11 A1 59" ||
-    id == "3D 3C 07 85")
+  if(id == "55 79 D7 2B")
   {
     return true;
   }

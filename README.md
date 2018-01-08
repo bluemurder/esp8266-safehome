@@ -11,5 +11,5 @@ It is based on several NodeMCU 1.0 units connected through a dedicated hidden wi
 
 The access point act as IP router for the other alarm modules, collecting data from remote sensors and activating the siren.
 
-![alt text](https://github.com/bluemurder/esp8266-safehome/images/plant1.png "Deploy example")
+![alt text](https://github.com/bluemurder/esp8266-safehome/blob/master/images/plant1.png "Deploy example")
 

@@ -13,7 +13,7 @@
 // 3.3V            3.3V
 // ---------------------------
 // Peripherals     NodeMcu 1.0
-// Buzzer          4 (D2)
+// Siren           4 (D2)
 // Pir             2 (D4)
 // Status led         D3
 
@@ -21,8 +21,9 @@
 // SSID: "GuaglioWifi"
 // Password: "testtesttest"
 // Server port: 42501
-//
-// 
+
+//////////////////////////////////////////////////////////////////////////////
+// Include files
 
 #include <SPI.h>
 #include <MFRC522.h>
@@ -33,6 +34,7 @@
 // Defines
 #define SS_PIN 15       // SPI pin connected to local RFID reader
 #define RST_PIN 5       // SPI RST pin connected to local RFID reader
+#define SIREN_PIN D2    // Siren command pin (active low)
 #define LOCALPIR_PIN D4 // PIR sensor input
 #define ARMEDLED_PIN D3 // Led showing armed status
 
@@ -40,7 +42,7 @@
 // Globals
 bool g_armed(false);
 MFRC522 mfrc522(SS_PIN, RST_PIN);
-bool rfidStationConnected;
+bool g_rfidStationConnected;
 WiFiServer httpServer(42501);
 WiFiClient rfidStationClient;
 
@@ -48,6 +50,10 @@ WiFiClient rfidStationClient;
 // Setup
 void setup()
 {
+  // Siren control pin setup
+  pinMode(SIREN_PIN, OUTPUT);
+  digitalWrite(SIREN_PIN, LOW);
+
   // Wait one second
   delay(1000);
   
@@ -64,7 +70,7 @@ void setup()
   digitalWrite(ARMEDLED_PIN, g_armed ? LOW : HIGH);
 
   // Flag used to store if the station with secondary RFID reader is present and connected
-  rfidStationConnected = false;
+  g_rfidStationConnected = false;
   
   // Initiate  SPI bus
   SPI.begin();
@@ -72,29 +78,33 @@ void setup()
   // Init MFRC522 interface
   mfrc522.PCD_Init();
 
-  // Start Wifi
+  // Start Wifi configuring security, specific channel and hidden network mode
   bool apCreation = WiFi.softAP(
     "GuaglioWifi",                // ssid
     "testtesttest",               // password
     13,                           // channel
     1);                           // ssid_hidden
 
+  // Check for errors
   if(!apCreation)
   {
     Serial.println("Error, WiFi.softAP() returned false.");
   }
 
-   bool apConfig = WiFi.softAPConfig(
-    IPAddress(42, 42, 42, 42),         // local_ip
-    IPAddress(42, 42, 42, 42),         // gateway
+  // Set IPv4 address
+  bool apConfig = WiFi.softAPConfig(
+    IPAddress(42, 42, 42, 42),         // local ip
+    IPAddress(42, 42, 42, 42),         // default gateway
     IPAddress(255, 255, 255, 0)        // subnet
     );
 
+  // Check for errors
   if(!apConfig)
   {
     Serial.println("Error, WiFi.softAPConfig() returned false.");
   }
 
+  // Print actual IP address
   IPAddress myIP = WiFi.softAPIP();
   Serial.print("IP address: ");
   Serial.println(myIP);
@@ -139,18 +149,18 @@ void ConnectRfidStation()
   {
     if (rfidStationClient.connect(IPAddress(42, 42, 42, 43), 15763))
     {
-      rfidStationConnected = true;
+      g_rfidStationConnected = true;
       return;
     }
-    rfidStationConnected = false;
+    g_rfidStationConnected = false;
   }
   else
   {
-    rfidStationConnected = true;
+    g_rfidStationConnected = true;
   }
 
   String strstatus = "rfidstation:";
-  if(rfidStationConnected) strstatus += "connected\n";
+  if(g_rfidStationConnected) strstatus += "connected\n";
   else strstatus += "not connected\n";
   Serial.print(strstatus);
 }
@@ -161,7 +171,7 @@ void PresenceDetected()
 {
   if(g_armed)
   {
-    if(rfidStationConnected)
+    if(g_rfidStationConnected)
     {
       ImmediateIntrusion();
     }
@@ -207,7 +217,7 @@ void HandleRemoteRequests()
   else if (req.indexOf("TAG:") != -1)
   {
     // Tag ID received from remote RFID station
-    rfidStationConnected = true;
+    g_rfidStationConnected = true;
 
     Serial.println(">>>>>" + req.substring(5));
 
@@ -314,28 +324,15 @@ void ToggleAlarmStatus()
 void ImmediateIntrusion()
 {
   // TODO
+  // Set siren pin high
+  // Call the end siren routine after 20 minutes
+  // exit
 }
 
 //////////////////////////////////////////////////////////////////////////////
 // 20 seconds to turn off, then siren!
 void DelayedIntrusion()
 {
-  // OK, alarm is fired. But it can be the home owner
-  // So, wait 20 seconds to possibly disable armed value
-  for(int i=0; i<20; i++)
-  {
-    CheckLocalRFIDReader();
-    String msg = "Wait for possible disarm by owner [";
-    msg.concat(i);
-    msg.concat("]");
-    Serial.println(msg);
-    delay(900);
-  }
-
-  // Now, if alarm is still armed, turn on siren
-  if(g_armed)
-  {
-    ImmediateIntrusion();
-  }
+  //
 }
 

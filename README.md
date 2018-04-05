@@ -17,3 +17,5 @@ The access point act as IP router for the other alarm modules, collecting data f
 * **rfidstation**: it is a secondary point where the owner can activate or deactivate the alarm. This unit is connected to the main power supply, and it is deployed externally with respect to the monitored area, No presence sensors are hosted by such component. Some leds are used to show to the used the security system status (component connested to the access point, alarm active or not).
 * **pirstation**: the purpose of that component is to host presence sensors and to inform the access point in case of intrusion.
 * **sirenstation**: this module can be used to drive a secondary external siren. 
+
+![alt text](https://github.com/bluemurder/esp8266-safehome/blob/master/images/accesspoint-flowchart.png "Accesspoint elaboration diagram")

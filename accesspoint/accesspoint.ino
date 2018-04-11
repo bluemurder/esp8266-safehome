@@ -1,3 +1,30 @@
+/*****************************************************************************
+ESP8266 (NodeMCU v1.0) home safety system with RFID authentication and 
+multiple wireless sensors
+
+MIT License
+
+Copyright (c) 2017 Alessio Leoncini, https://www.technologytourist.com
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*****************************************************************************/
+
 // Select NodeMCU 1.0
 
 // PINOUT:
@@ -26,9 +53,12 @@
 // Include files
 
 #include <SPI.h>
-#include <MFRC522.h>
+#include <MFRC522.h> // "MFRC522" library: https://github.com/miguelbalboa/rfid
+#include <Pinger.h>  // "ESP8622-ping" library: https://github.com/bluemurder/esp8266-ping
+#include <EveryTimer.h> // "EveryTimer" library: https://github.com/bluemurder/EveryTimer
 #include <ESP8266WiFi.h>
-#include <WiFiClient.h> 
+#include <WiFiClient.h>
+#include <ESP8266WebServer.h>
 
 //////////////////////////////////////////////////////////////////////////////
 // Defines
@@ -43,8 +73,43 @@
 bool g_armed(false);
 MFRC522 mfrc522(SS_PIN, RST_PIN);
 bool g_rfidStationConnected;
-WiFiServer httpServer(42501);
+ESP8266WebServer httpServer(42501);
 WiFiClient rfidStationClient;
+
+//////////////////////////////////////////////////////////////////////////////
+// Magnetic sensor hit
+void HandleMag()
+{
+  
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Presence sensor hit
+void HandlePir()
+{
+  
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Handle request about alarm state
+void HandleArmed()
+{
+  
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Check validity of a tag
+void HandleTag()
+{
+  
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Print diagnostics page
+void HandleDiagnostics()
+{
+  
+}
 
 //////////////////////////////////////////////////////////////////////////////
 // Setup
@@ -109,6 +174,13 @@ void setup()
   Serial.print("IP address: ");
   Serial.println(myIP);
 
+  // Assign handlers
+  httpServer.on("/mag", HandleMag); // Magnetic sensor hit
+  httpServer.on("/pir", HandlePir); // Presence sensor hit
+  httpServer.on("/armed", HandleArmed); // Handle request about alarm state
+  httpServer.on("/tag", HandleTag); // Check validity of a tag
+  httpServer.on("/diag", HandleDiagnostics); // Print diagnostics page
+
   // Start Webserver
   httpServer.begin();
 
@@ -135,10 +207,7 @@ void loop()
   }
 
   // Handle remote requests
-  HandleRemoteRequests();
-
-  // Delay on main loop
-  delay(500);
+  httpServer.handleClient();
 }
 
 //////////////////////////////////////////////////////////////////////////////

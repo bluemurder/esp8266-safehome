@@ -71,10 +71,12 @@ SOFTWARE.
 //////////////////////////////////////////////////////////////////////////////
 // Globals
 bool g_armed(false);
+bool g_siren(false);
+bool g_rfidStationConnected(false);
 MFRC522 mfrc522(SS_PIN, RST_PIN);
-bool g_rfidStationConnected;
 ESP8266WebServer httpServer(42501);
 WiFiClient rfidStationClient;
+EveryTimer delayedSirenTimer;
 
 //////////////////////////////////////////////////////////////////////////////
 // Magnetic sensor hit
@@ -112,6 +114,93 @@ void HandleDiagnostics()
 }
 
 //////////////////////////////////////////////////////////////////////////////
+// Check local RFID tag reader
+void CheckLocalRFIDReader()
+{
+  // Look for new cards
+  if(!mfrc522.PICC_IsNewCardPresent()) 
+  {
+    return;
+  }
+  
+  // Select one of the cards
+  if(!mfrc522.PICC_ReadCardSerial()) 
+  {
+    return;
+  }
+
+  String content= "";
+  for (byte i = 0; i < mfrc522.uid.size; i++) 
+  {
+     content.concat(String(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " "));
+     content.concat(String(mfrc522.uid.uidByte[i], HEX));
+  }  
+  content.toUpperCase();
+
+  // Check if present tag is one of known tags
+  if (IsKnownTagId(content.substring(1)))
+  {
+    ToggleAlarmStatus();
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Toggle alarm status after a local tag read (blocking, with delays)
+void ToggleAlarmStatus()
+{
+  if(g_armed)
+  {
+    // Switch off alarm
+    g_armed = false;
+
+    // Blink
+    digitalWrite(ARMEDLED_PIN, HIGH);
+    delay(1000);
+    digitalWrite(ARMEDLED_PIN, LOW);
+    delay(1000);
+
+    // Led is ON when system is not armed
+    digitalWrite(ARMEDLED_PIN, g_armed ? LOW : HIGH);
+  }
+  else
+  {
+    // Turn on alarm
+    digitalWrite(ARMEDLED_PIN, LOW);
+    delay(500);
+    digitalWrite(ARMEDLED_PIN, HIGH);
+    delay(500);
+    digitalWrite(ARMEDLED_PIN, LOW);
+    delay(500);
+    digitalWrite(ARMEDLED_PIN, HIGH);
+    delay(500);
+    digitalWrite(ARMEDLED_PIN, LOW);
+
+    // System armed
+    g_armed = true;
+    
+    // Led is ON when system is not armed
+    digitalWrite(ARMEDLED_PIN, g_armed ? LOW : HIGH);
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Check if tag ID is known
+bool IsKnownTagId(const String & id)
+{
+  if((id == "01 02 03 04") ||
+     (id == "01 02 03 04") ||
+     (id == "01 02 03 04") ||
+     (id == "01 02 03 04"))
+  {
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////
 // Setup
 void setup()
 {
@@ -133,9 +222,6 @@ void setup()
 
   // Led is ON when system is not armed
   digitalWrite(ARMEDLED_PIN, g_armed ? LOW : HIGH);
-
-  // Flag used to store if the station with secondary RFID reader is present and connected
-  g_rfidStationConnected = false;
   
   // Initiate  SPI bus
   SPI.begin();
@@ -193,13 +279,9 @@ void setup()
 // Main loop
 void loop()
 {
-  // Check presence of remote RFID reader. If present, no delay will be applied
-  // to alarm
-  ConnectRfidStation();
-  
   // Read from local RFID reader 
   CheckLocalRFIDReader();
-  
+
   // Check local sensor
   if(digitalRead(LOCALPIR_PIN) == HIGH)
   {
@@ -238,6 +320,10 @@ void ConnectRfidStation()
 // Decide if start alarm immediately or with a delay
 void PresenceDetected()
 {
+  if((!g_siren) && g_rfidStationConnected && g_armed)
+  {
+    delayAlarmTimer.Every(25000UL, )
+  }
   if(g_armed)
   {
     if(g_rfidStationConnected)
@@ -301,90 +387,6 @@ void HandleRemoteRequests()
     Serial.println("invalid request");
     //wifiClient.stop();
     return;
-  }
-}
-
-//////////////////////////////////////////////////////////////////////////////
-// Check local RFID tag reader
-void CheckLocalRFIDReader()
-{
-  // Look for new cards
-  if(!mfrc522.PICC_IsNewCardPresent()) 
-  {
-    return;
-  }
-  
-  // Select one of the cards
-  if(!mfrc522.PICC_ReadCardSerial()) 
-  {
-    return;
-  }
-
-  String content= "";
-  for (byte i = 0; i < mfrc522.uid.size; i++) 
-  {
-     content.concat(String(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " "));
-     content.concat(String(mfrc522.uid.uidByte[i], HEX));
-  }  
-  content.toUpperCase();
-
-  // Check if present tag is one of known tags
-  if (IsKnownTagId(content.substring(1)))
-  {
-    ToggleAlarmStatus();
-  }
-}
-
-//////////////////////////////////////////////////////////////////////////////
-// Check if tag ID is known
-bool IsKnownTagId(const String & id)
-{
-  if(id == "55 79 D7 2B")
-  {
-    return true;
-  }
-  else
-  {
-    return false;
-  }
-}
-
-//////////////////////////////////////////////////////////////////////////////
-// Check local RFID tag reader
-void ToggleAlarmStatus()
-{
-  if(g_armed)
-  {
-    // Switch off alarm
-    g_armed = false;
-
-    // Blink
-    digitalWrite(ARMEDLED_PIN, HIGH);
-    delay(1000);
-    digitalWrite(ARMEDLED_PIN, LOW);
-    delay(1000);
-
-    // Led is ON when system is not armed
-    digitalWrite(ARMEDLED_PIN, g_armed ? LOW : HIGH);
-  }
-  else
-  {
-    // Turn on alarm
-    digitalWrite(ARMEDLED_PIN, LOW);
-    delay(500);
-    digitalWrite(ARMEDLED_PIN, HIGH);
-    delay(500);
-    digitalWrite(ARMEDLED_PIN, LOW);
-    delay(500);
-    digitalWrite(ARMEDLED_PIN, HIGH);
-    delay(500);
-    digitalWrite(ARMEDLED_PIN, LOW);
-
-    // System armed
-    g_armed = true;
-    
-    // Led is ON when system is not armed
-    digitalWrite(ARMEDLED_PIN, g_armed ? LOW : HIGH);
   }
 }
 
